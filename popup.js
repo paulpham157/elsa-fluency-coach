@@ -1,7 +1,12 @@
 var state = {
   tabId: null,
   url: '',
-  settings: {},
+  settings: {
+    includeTranscript: true,
+    includeComparison: true,
+    includeSkillDetails: true,
+    skillDetailTabs: ['pronunciation', 'intonation', 'fluency/pace', 'fluency/pausing', 'fluency/hesitations', 'grammar', 'vocabulary'],
+  },
 }
 
 document.addEventListener('DOMContentLoaded', function () {
