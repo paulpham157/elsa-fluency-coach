@@ -4,19 +4,24 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     const options = message.options || {}
 
     if (url === '/recordings' || url.match(/^\/recordings\/[a-f0-9-]+$/)) {
-      sendResponse({ ok: true, page: 'overall', data: extractFromDom(document, options) })
+      const data = extractFromDom(document, options)
+      sendResponse({ ok: true, page: 'overall', data: data })
     } else if (url.match(/^\/recordings\/[a-f0-9-]+\/(pronunciation|intonation|grammar|vocabulary)$/)) {
       const skill = url.split('/').pop()
-      sendResponse({ ok: true, page: 'skill', skill: skill, data: extractMainSkillDetail(document, skill) })
+      const data = extractMainSkillDetail(document, skill)
+      sendResponse({ ok: true, page: 'skill', skill: skill, data: data })
     } else if (url.match(/^\/recordings\/[a-f0-9-]+\/fluency\/(pace|pausing|hesitations)$/)) {
       const skill = url.split('/').pop()
-      sendResponse({ ok: true, page: 'skill', skill: skill, data: extractFluencySubPage(document, skill) })
+      const data = extractFluencySubPage(document, skill)
+      sendResponse({ ok: true, page: 'skill', skill: skill, data: data })
     } else {
       sendResponse({ ok: false, error: 'Unrecognized page' })
     }
   }
   return true
 })
+
+console.log('Fluency Coach content script loaded on', window.location.pathname)
 
 function extractMainSkillDetail(doc, skill) {
   var scoreEl = doc.querySelector('.recording-detail-score .apexcharts-datalabel-value')

@@ -158,33 +158,28 @@ function waitForContentScript(tabId, skill, callback) {
 
   function poll() {
     if (attempts > 40) {
+      console.log('FC: timeout for', skill, 'partialData keys:', partialData ? Object.keys(partialData) : 'null')
       callback(partialData || { skill: skill, error: 'timeout' })
       return
     }
     attempts++
     chrome.tabs.sendMessage(tabId, { type: 'EXTRACT', options: {} }, function (response) {
       if (chrome.runtime.lastError) {
+        if (attempts % 10 === 0) console.log('FC: lastError for', skill, 'attempt', attempts)
         setTimeout(poll, 500)
         return
       }
       var data = response && response.ok ? response.data : null
       if (!data) {
+        console.log('FC: no data for', skill)
         callback({ skill: skill, error: 'no response' })
         return
       }
-      if (!partialData) partialData = data
-
-      var shouldRetry = false
-      if (data.overall && !data.overall.score && !data.noResult) {
-        shouldRetry = true
+      if (!partialData) {
+        partialData = data
+        console.log('FC: partialData for', skill, 'keys:', Object.keys(data), 'hasScore:', !!data.overall || 'fluency' in data)
       }
-      if (data.fluencySubScores && data.fluencySubScores.length < 3) {
-        shouldRetry = true
-      }
-      if (shouldRetry) {
-        setTimeout(poll, 500)
-        return
-      }
+      console.log('FC: success for', skill, 'attempt', attempts, 'subSkills:', data.subSkills && data.subSkills.length, 'topErrors:', data.topErrors && data.topErrors.length, 'tutorials:', data.tutorials && data.tutorials.length, 'fluencySubScores:', data.fluencySubScores && data.fluencySubScores.length)
       callback(data)
     })
   }
