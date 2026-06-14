@@ -246,6 +246,16 @@ function renderReport(results) {
         if (d.overall.score) lines.push('- Score: ' + d.overall.score)
         if (d.overall.level) lines.push('- Level: ' + d.overall.level)
       }
+      if (d.description) {
+        lines.push('')
+        lines.push('  ' + d.description)
+      }
+      if (d.pitchOverview) {
+        if (d.pitchOverview.description) {
+          lines.push('')
+          lines.push('  **Pitch Variation**: ' + d.pitchOverview.description)
+        }
+      }
       if (d.subSkills && d.subSkills.length) {
         lines.push('')
         lines.push('  **Sub-skills**')

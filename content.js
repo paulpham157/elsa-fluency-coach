@@ -74,6 +74,23 @@ function extractMainSkillDetail(doc, skill) {
     }
   })
 
+  var description = ''
+  var body = doc.querySelector('.recording-detail-score__body')
+  if (body) {
+    var paragraphs = body.querySelectorAll('p')
+    var descParts = []
+    paragraphs.forEach(function (p) { descParts.push(p.textContent.trim()) })
+    description = descParts.filter(function (s) { return s }).join(' ')
+  }
+
+  var pitchOverview = null
+  var pitchEl = doc.querySelector('.pitch-overview__desc')
+  if (pitchEl) {
+    pitchOverview = {
+      description: pitchEl.textContent.trim(),
+    }
+  }
+
   return {
     skill: skill,
     overall: {
@@ -81,6 +98,8 @@ function extractMainSkillDetail(doc, skill) {
       level: levelEl ? levelEl.textContent.trim() : '',
     },
     noResult: null,
+    description: description,
+    pitchOverview: pitchOverview,
     subSkills: subSkills,
     topErrors: topErrors,
     tutorials: tutorials,

@@ -48,6 +48,16 @@ QUnit.module('renderReport', function () {
           if (d.overall.score) lines.push('- Score: ' + d.overall.score)
           if (d.overall.level) lines.push('- Level: ' + d.overall.level)
         }
+        if (d.description) {
+          lines.push('')
+          lines.push('  ' + d.description)
+        }
+        if (d.pitchOverview) {
+          if (d.pitchOverview.description) {
+            lines.push('')
+            lines.push('  **Pitch Variation**: ' + d.pitchOverview.description)
+          }
+        }
         if (d.subSkills && d.subSkills.length) {
           lines.push('')
           lines.push('  **Sub-skills**')
@@ -159,7 +169,7 @@ QUnit.module('renderReport', function () {
           { sound: '/t/', mistakes: 'thought, three' },
         ],
         tutorials: [
-          { title: 'Tutorial for TH Sounds', url: 'https://youtube.com/...' },
+          { title: 'Tutorial for TH Sounds', url: 'https://www.youtube.com/watch?v=abc123' },
         ],
       },
     ]
@@ -174,7 +184,7 @@ QUnit.module('renderReport', function () {
     assert.ok(report.includes('**Top Errors**'))
     assert.ok(report.includes('/t/'))
     assert.ok(report.includes('**Tutorials**'))
-    assert.ok(report.includes('Tutorial for TH Sounds'))
+    assert.ok(report.includes('[Tutorial for TH Sounds](https://www.youtube.com/watch?v=abc123)'))
   })
 
   QUnit.test('fluency sub-page with subScores and gauge', function (assert) {
@@ -208,6 +218,28 @@ QUnit.module('renderReport', function () {
     assert.ok(report.includes('Pausing: 56% (Acceptable)'))
     assert.ok(report.includes('**Current**: 69 wpm (Natural)'))
     assert.ok(report.includes('**Current**: 56% (Acceptable)'))
+  })
+
+  QUnit.test('skill detail with description and pitchOverview', function (assert) {
+    var results = [
+      { metadata: { title: 'Test', date: '', duration: '', speakingTime: '' }, skills: [], comparison: [], transcript: '' },
+      {
+        skill: 'intonation',
+        overall: { score: '24%', level: 'Beginner' },
+        noResult: null,
+        description: 'Your intonation level is Beginner. Keep working at it! Make your voice louder and higher for important words!',
+        pitchOverview: { description: 'Keep your Pitch Variation within the target range shown in green below.' },
+        subSkills: [],
+        topErrors: [],
+        tutorials: [],
+      },
+    ]
+
+    var report = renderReport(results)
+    assert.ok(report.includes('### Intonation'))
+    assert.ok(report.includes('Your intonation level is Beginner'))
+    assert.ok(report.includes('**Pitch Variation**'))
+    assert.ok(report.includes('target range shown in green'))
   })
 
   QUnit.test('noResult shown for short recording', function (assert) {
