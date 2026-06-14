@@ -63,9 +63,13 @@ function extractMainSkillDetail(doc, skill) {
     var titleEl = item.querySelector('.video-item__title')
     var imgEl = item.querySelector('.video-item__bg')
     if (titleEl) {
+      var thumbUrl = imgEl ? imgEl.src : ''
+      var videoUrl = ''
+      var match = thumbUrl.match(/\/vi\/([^/]+)\//)
+      if (match) videoUrl = 'https://www.youtube.com/watch?v=' + match[1]
       tutorials.push({
         title: titleEl.textContent.trim(),
-        url: imgEl ? imgEl.src : '',
+        url: videoUrl,
       })
     }
   })

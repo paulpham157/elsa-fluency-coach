@@ -264,7 +264,11 @@ function renderReport(results) {
         lines.push('')
         lines.push('  **Tutorials**')
         d.tutorials.forEach(function (t) {
-          lines.push('  - ' + t.title)
+          if (t.url) {
+            lines.push('  - [' + t.title + '](' + t.url + ')')
+          } else {
+            lines.push('  - ' + t.title)
+          }
         })
       }
       if (d.fluencySubScores && d.fluencySubScores.length) {
