@@ -153,10 +153,11 @@ function extractSkillDetails(skills, tab, results) {
 
 function waitForContentScript(tabId, skill, callback) {
   var attempts = 0
+  var partialData = null
 
   function poll() {
     if (attempts > 40) {
-      callback({ skill: skill, error: 'timeout' })
+      callback(partialData || { skill: skill, error: 'timeout' })
       return
     }
     attempts++
@@ -166,20 +167,24 @@ function waitForContentScript(tabId, skill, callback) {
         return
       }
       var data = response && response.ok ? response.data : null
+      if (!data) {
+        callback({ skill: skill, error: 'no response' })
+        return
+      }
+      if (!partialData) partialData = data
+
       var shouldRetry = false
-      if (data) {
-        if (data.overall && !data.overall.score && !data.noResult) {
-          shouldRetry = true
-        }
-        if (data.fluencySubScores && data.fluencySubScores.length < 3) {
-          shouldRetry = true
-        }
+      if (data.overall && !data.overall.score && !data.noResult) {
+        shouldRetry = true
+      }
+      if (data.fluencySubScores && data.fluencySubScores.length < 3) {
+        shouldRetry = true
       }
       if (shouldRetry) {
         setTimeout(poll, 500)
         return
       }
-      callback(data || { skill: skill, error: 'no response' })
+      callback(data)
     })
   }
 
