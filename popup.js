@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
   loadSettings()
   setupEventListeners()
   checkCurrentTab()
+  restoreLastReport()
 })
 
 function loadSettings() {
@@ -193,6 +194,7 @@ function finishExtract(results, tab) {
   document.getElementById('extractBtn').disabled = false
   document.getElementById('extractBtn').textContent = 'Extract Data'
   hideStatus()
+  chrome.storage.local.set({ lastReport: report })
 }
 
 function renderReport(results) {
@@ -301,5 +303,16 @@ function handleCopy() {
   navigator.clipboard.writeText(text).then(function () {
     showStatus('Copied to clipboard!')
     setTimeout(hideStatus, 2000)
+  })
+}
+
+function restoreLastReport() {
+  chrome.storage.local.get('lastReport', function (items) {
+    if (items.lastReport) {
+      document.getElementById('output').textContent = items.lastReport
+      document.getElementById('output').style.display = 'block'
+      document.getElementById('outputActions').classList.remove('hidden')
+      showStatus('Previous report restored. Click Extract to generate a new one.')
+    }
   })
 }
