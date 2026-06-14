@@ -136,7 +136,6 @@ function askOverall(tab) {
 }
 
 function extractSkillDetails(skills, tab, results) {
-  var baseUrl = tab.url.replace(/\/+$/, '')
   var i = 0
 
   function next() {
@@ -145,52 +144,37 @@ function extractSkillDetails(skills, tab, results) {
       return
     }
     var skill = skills[i++]
-    chrome.tabs.create({ url: baseUrl + '/' + skill, active: true }, function (newTab) {
-      chrome.tabs.update(tab.id, { active: true })
-      waitForContentScript(newTab.id, skill, function (data) {
-        results.push(data)
-        chrome.tabs.remove(newTab.id)
+    var isFluency = skill.indexOf('fluency/') === 0
+
+    chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_SKILL', skill: skill }, function (response) {
+      if (chrome.runtime.lastError || !response || !response.ok) {
+        results.push({ skill: skill, error: response ? response.error : 'nav failed' })
         next()
+        return
+      }
+
+      chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT', options: {} }, function (extractResponse) {
+        var data = extractResponse && extractResponse.ok ? extractResponse.data : null
+        results.push(data || { skill: skill, error: 'extract failed' })
+
+        function back() {
+          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
+            next()
+          })
+        }
+
+        if (isFluency) {
+          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
+            back()
+          })
+        } else {
+          back()
+        }
       })
     })
   }
 
   next()
-}
-
-function waitForContentScript(tabId, skill, callback) {
-  var attempts = 0
-  var partialData = null
-
-  function poll() {
-    if (attempts > 40) {
-      console.log('FC: timeout for', skill, 'partialData keys:', partialData ? Object.keys(partialData) : 'null')
-      callback(partialData || { skill: skill, error: 'timeout' })
-      return
-    }
-    attempts++
-    chrome.tabs.sendMessage(tabId, { type: 'EXTRACT', options: {} }, function (response) {
-      if (chrome.runtime.lastError) {
-        if (attempts % 10 === 0) console.log('FC: lastError for', skill, 'attempt', attempts)
-        setTimeout(poll, 500)
-        return
-      }
-      var data = response && response.ok ? response.data : null
-      if (!data) {
-        console.log('FC: no data for', skill)
-        callback({ skill: skill, error: 'no response' })
-        return
-      }
-      if (!partialData) {
-        partialData = data
-        console.log('FC: partialData for', skill, 'keys:', Object.keys(data), 'hasScore:', !!data.overall || 'fluency' in data)
-      }
-      console.log('FC: success for', skill, 'attempt', attempts, 'subSkills:', data.subSkills && data.subSkills.length, 'topErrors:', data.topErrors && data.topErrors.length, 'tutorials:', data.tutorials && data.tutorials.length, 'fluencySubScores:', data.fluencySubScores && data.fluencySubScores.length)
-      callback(data)
-    })
-  }
-
-  setTimeout(poll, 3000)
 }
 
 function finishExtract(results, tab) {

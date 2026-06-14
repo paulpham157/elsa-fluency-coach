@@ -17,125 +17,93 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     } else {
       sendResponse({ ok: false, error: 'Unrecognized page' })
     }
+  } else if (message.type === 'NAVIGATE_SKILL') {
+    navigateToSkill(message.skill, sendResponse)
+    return true
+  } else if (message.type === 'NAVIGATE_BACK') {
+    navigateBack(sendResponse)
+    return true
   }
   return true
 })
 
-console.log('Fluency Coach content script loaded on', window.location.pathname)
-
-function extractMainSkillDetail(doc, skill) {
-  var scoreEl = doc.querySelector('.recording-detail-score .apexcharts-datalabel-value')
-  var levelEl = doc.querySelector('.recording-detail-score .apexcharts-datalabel-label')
-
-  if (!scoreEl && !levelEl) {
-    var noResultEl = doc.querySelector('.overall-score__speak-sub-title')
-    return {
-      skill: skill,
-      overall: { score: '', level: '' },
-      noResult: noResultEl ? noResultEl.textContent.trim() : null,
-      subSkills: [],
-      topErrors: [],
-      tutorials: [],
-    }
-  }
-
-  var subSkills = []
-  doc.querySelectorAll('.skills__wrapper .skill-item').forEach(function (item) {
-    var titleEl = item.querySelector('.skill-item__title')
-    var levelEl = item.querySelector('.skill-item__level')
-    if (titleEl) {
-      subSkills.push({
-        name: titleEl.textContent.trim(),
-        level: levelEl ? levelEl.textContent.trim() : '',
-      })
-    }
+function waitForEl(selector, callback, timeout) {
+  var el = document.querySelector(selector)
+  if (el) { callback(el); return }
+  var observer = new MutationObserver(function () {
+    var el = document.querySelector(selector)
+    if (el) { observer.disconnect(); callback(el) }
   })
-
-  var topErrors = []
-  doc.querySelectorAll('.top-error .error-item').forEach(function (item) {
-    var soundEl = item.querySelector('.error-item__header')
-    var mistakesEl = item.querySelector('.error-item__mistakes')
-    if (soundEl) {
-      topErrors.push({
-        sound: soundEl.textContent.trim(),
-        mistakes: mistakesEl ? mistakesEl.textContent.trim() : '',
-      })
-    }
-  })
-
-  var tutorials = []
-  doc.querySelectorAll('.skill-item__video-wrapper .video-item').forEach(function (item) {
-    var titleEl = item.querySelector('.video-item__title')
-    var imgEl = item.querySelector('.video-item__bg')
-    if (titleEl) {
-      var thumbUrl = imgEl ? imgEl.src : ''
-      var videoUrl = ''
-      var match = thumbUrl.match(/\/vi\/([^/]+)\//)
-      if (match) videoUrl = 'https://www.youtube.com/watch?v=' + match[1]
-      tutorials.push({
-        title: titleEl.textContent.trim(),
-        url: videoUrl,
-      })
-    }
-  })
-
-  var description = ''
-  var body = doc.querySelector('.recording-detail-score__body')
-  if (body) {
-    var paragraphs = body.querySelectorAll('p')
-    var descParts = []
-    paragraphs.forEach(function (p) { descParts.push(p.textContent.trim()) })
-    description = descParts.filter(function (s) { return s }).join(' ')
-  }
-
-  var pitchOverview = null
-  var pitchEl = doc.querySelector('.pitch-overview__desc')
-  if (pitchEl) {
-    pitchOverview = {
-      description: pitchEl.textContent.trim(),
-    }
-  }
-
-  return {
-    skill: skill,
-    overall: {
-      score: scoreEl ? scoreEl.textContent.trim() : '',
-      level: levelEl ? levelEl.textContent.trim() : '',
-    },
-    noResult: null,
-    description: description,
-    pitchOverview: pitchOverview,
-    subSkills: subSkills,
-    topErrors: topErrors,
-    tutorials: tutorials,
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+  if (timeout) {
+    setTimeout(function () { observer.disconnect(); callback(null) }, timeout)
   }
 }
 
-function extractFluencySubPage(doc, skill) {
-  var fluencySubScores = []
-  doc.querySelectorAll('.accordion-sub-item').forEach(function (item) {
-    var nameEl = item.querySelector('.accordion-sub-item__title-large')
-    var valueEl = item.querySelector('.accordion-sub-item__score-value')
-    var labelEl = item.querySelector('.accordion-sub-item__title-small')
-    if (nameEl) {
-      fluencySubScores.push({
-        name: nameEl.textContent.trim(),
-        value: valueEl ? valueEl.textContent.trim() : '',
-        label: labelEl ? labelEl.textContent.trim() : '',
-      })
+function getSkillTabName(skill) {
+  var map = {
+    pronunciation: 'Pronunciation',
+    intonation: 'Intonation',
+    grammar: 'Grammar',
+    vocabulary: 'Vocabulary',
+    fluency: 'Fluency',
+  }
+  var base = skill.split('/')[0]
+  return map[base] || base
+}
+
+function clickTab(tabName) {
+  var tabs = document.querySelectorAll('.wrapper-tabs__tab-item')
+  var found = null
+  tabs.forEach(function (tab) {
+    var nameEl = tab.querySelector('.text-tab__skill')
+    if (nameEl && nameEl.textContent.trim() === tabName) {
+      found = tab
     }
   })
+  if (found) found.click()
+  return found
+}
 
-  var gaugeEl = doc.querySelector('.gauge-chart__text-wrapper')
-  var gaugeValue = gaugeEl ? gaugeEl.querySelector('.gauge-chart__name') : null
-  var gaugeLabel = gaugeEl ? gaugeEl.querySelector('.gauge-chart__label') : null
+function navigateToSkill(skill, sendResponse) {
+  var tabName = getSkillTabName(skill)
+  clickTab(tabName)
 
-  return {
-    skill: skill,
-    fluencySubScores: fluencySubScores,
-    gauge: {
-      value: gaugeValue ? gaugeValue.textContent.trim() : '',
-      label: gaugeLabel ? gaugeLabel.textContent.trim() : '',
-    },
-  }
+  waitForEl('.link-to-text', function (link) {
+    if (!link) { sendResponse({ ok: false, error: 'No link found' }); return }
+
+    var isFluency = skill.indexOf('fluency/') === 0
+    if (isFluency) {
+      link.click()
+      var subSkill = skill.split('/')[1]
+      waitForEl('.accordion-sub-item', function () {
+        var links = document.querySelectorAll('.accordion-sub-item a, .accordion-sub-item')
+        var clicked = false
+        links.forEach(function (item) {
+          var nameEl = item.querySelector('.accordion-sub-item__title-large')
+          if (nameEl && nameEl.textContent.trim().toLowerCase() === subSkill) {
+            if (item.tagName === 'A') item.click()
+            else { var a = item.closest('a'); if (a) a.click() }
+            clicked = true
+          }
+        })
+        if (!clicked) { sendResponse({ ok: false, error: 'Sub-skill not found: ' + subSkill }); return }
+        waitForEl('.gauge-chart__text-wrapper, .recording-detail-score', function () {
+          sendResponse({ ok: true })
+        }, 15000)
+      }, 10000)
+    } else {
+      link.click()
+      waitForEl('.recording-detail-score', function () {
+        sendResponse({ ok: true })
+      }, 15000)
+    }
+  }, 5000)
+}
+
+function navigateBack(sendResponse) {
+  history.back()
+  waitForEl('.wrapper-tabs', function (el) {
+    sendResponse({ ok: true })
+  }, 15000)
 }
