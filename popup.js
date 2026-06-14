@@ -80,6 +80,7 @@ function hideStatus() {
 function handleExtract() {
   saveSettings()
   hideStatus()
+  chrome.storage.local.remove('lastReport')
   document.getElementById('output').style.display = 'none'
   document.getElementById('outputActions').classList.add('hidden')
   document.getElementById('extractBtn').disabled = true
@@ -327,11 +328,11 @@ function handleCopy() {
 
 function restoreLastReport() {
   chrome.storage.local.get('lastReport', function (items) {
-    if (items.lastReport) {
-      document.getElementById('output').textContent = items.lastReport
-      document.getElementById('output').style.display = 'block'
-      document.getElementById('outputActions').classList.remove('hidden')
-      showStatus('Previous report restored. Click Extract to generate a new one.')
-    }
+    if (!items.lastReport) return
+    if (items.lastReport.indexOf('- Score:') === -1) return
+    document.getElementById('output').textContent = items.lastReport
+    document.getElementById('output').style.display = 'block'
+    document.getElementById('outputActions').classList.remove('hidden')
+    showStatus('Previous report restored. Click Extract to generate a new one.')
   })
 }
