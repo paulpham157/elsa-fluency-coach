@@ -145,7 +145,8 @@ function extractSkillDetails(skills, tab, results) {
       return
     }
     var skill = skills[i++]
-    chrome.tabs.create({ url: baseUrl + '/' + skill, active: false }, function (newTab) {
+    chrome.tabs.create({ url: baseUrl + '/' + skill, active: true }, function (newTab) {
+      chrome.tabs.update(tab.id, { active: true })
       waitForContentScript(newTab.id, skill, function (data) {
         results.push(data)
         chrome.tabs.remove(newTab.id)

@@ -1,6 +1,6 @@
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (message.type === 'EXTRACT') {
-    const url = window.location.pathname
+    const url = window.location.pathname.replace(/\/+$/, '')
     const options = message.options || {}
 
     if (url === '/recordings' || url.match(/^\/recordings\/[a-f0-9-]+$/)) {
