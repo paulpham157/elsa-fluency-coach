@@ -161,118 +161,154 @@ function tag(name, attrs, content) {
 }
 
 function renderReport(results) {
+  var overall = results[0]
   var lines = []
-  lines.push('# Fluency Coach Report')
+
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>')
+  lines.push('<fluency-coach-report>')
   lines.push('')
 
-  var overall = results[0]
+  lines.push('  <agent-instructions>')
+  lines.push('    <purpose>')
+  lines.push('      You are an English-speaking coach analyzing an ELSA Speech Analyzer report.')
+  lines.push('      Your goal: help the user improve their spoken English, with strong emphasis on fluency.')
+  lines.push('    </purpose>')
+  lines.push('    <approach>')
+  lines.push('      - Prioritize Fluency (pace, pausing, hesitations) above other skills — it most affects natural speech.')
+  lines.push('      - Use transcript to find specific phrases the user struggled with (pauses, filler words, slow passages).')
+  lines.push('      - Provide concrete, actionable exercises — not generic advice.')
+  lines.push('      - Reference tutorials when available.')
+  lines.push('      - Track progress by comparing scores across sessions.')
+  lines.push('    </approach>')
+  lines.push('    <focus-areas>')
+  lines.push('      <area name="Fluency" priority="high">')
+  lines.push('        Analyze pace (wpm), pause frequency/duration, and hesitations.')
+  lines.push('        Suggest: chunking practice, timed repetition, shadowing, filler-word reduction drills.')
+  lines.push('      </area>')
+  lines.push('      <area name="Pronunciation" priority="high">')
+  lines.push('        Target specific problem sounds from top errors. Recommend: minimal pairs, tongue-position drills, mirror practice.')
+  lines.push('      </area>')
+  lines.push('      <area name="Intonation" priority="medium">')
+  lines.push('        Address pitch range and sentence stress. Recommend: thought-group drills, shadowing with intonation marking.')
+  lines.push('      </area>')
+  lines.push('      <area name="Grammar" priority="medium">')
+  lines.push('        Identify recurring grammar patterns from the transcript. Suggest targeted exercises.')
+  lines.push('      </area>')
+  lines.push('      <area name="Vocabulary" priority="medium">')
+  lines.push('        Highlight academic/advanced word alternatives for commonly used simple words.')
+  lines.push('      </area>')
+  lines.push('    </focus-areas>')
+  lines.push('  </agent-instructions>')
+
   if (overall && overall.metadata) {
     var meta = overall.metadata
-    lines.push('**Recording**: ' + (meta.title || 'Untitled'))
-    if (meta.date) lines.push('**Date**: ' + meta.date)
-    if (meta.duration && meta.duration !== '00:00:00') lines.push('**Duration**: ' + meta.duration)
-    if (meta.speakingTime && meta.speakingTime !== '00:00:00') lines.push('**Speaking Time**: ' + meta.speakingTime)
+    var recAttrs = { title: meta.title, date: meta.date }
+    if (meta.duration && meta.duration !== '00:00:00') recAttrs.duration = meta.duration
+    if (meta.speakingTime && meta.speakingTime !== '00:00:00') recAttrs['speaking-time'] = meta.speakingTime
     lines.push('')
-  }
+    lines.push('  ' + tag('recording', recAttrs, ''))
 
-  if (overall && overall.skills && overall.skills.length) {
-    lines.push('## Skill Scores')
-    lines.push('')
-    overall.skills.forEach(function (s) {
-      lines.push('- **' + s.name + '**: ' + (s.score !== null ? s.score + '%' : s.raw))
-    })
-    lines.push('')
-  }
+    if (overall.skills && overall.skills.length) {
+      lines.push('    <skill-scores>')
+      overall.skills.forEach(function (s) {
+        lines.push('      ' + tag('skill', { name: s.name, score: s.score !== null ? s.score + '%' : s.raw }))
+      })
+      lines.push('    </skill-scores>')
+    }
 
-  if (overall && overall.comparison && overall.comparison.length) {
-    lines.push('## Test Score Predictors')
-    lines.push('')
-    overall.comparison.forEach(function (c) {
-      if (c.score) {
-        lines.push('- **' + c.name + '**: ' + c.score + '/' + c.max + (c.label && c.label !== 'Level Not Provided' ? ' (' + c.label + ')' : ''))
-      }
-    })
-    lines.push('')
-  }
-
-  var skillDetails = results.slice(1).filter(function (r) { return r && r.skill })
-  if (skillDetails.length) {
-    lines.push('## Skill Details')
-    lines.push('')
-    skillDetails.forEach(function (d) {
-      var label = formatSkillLabel(d.skill)
-      lines.push('### ' + label)
-      if (d.noResult) {
-        lines.push('- ' + d.noResult)
-      }
-      if (d.overall) {
-        if (d.overall.score) lines.push('- Score: ' + d.overall.score)
-        if (d.overall.level) lines.push('- Level: ' + d.overall.level)
-      }
-      if (d.description) {
-        lines.push('')
-        lines.push('  ' + d.description)
-      }
-      if (d.pitchOverview) {
-        if (d.pitchOverview.description) {
-          lines.push('')
-          lines.push('  **Pitch Variation**: ' + d.pitchOverview.description)
+    if (overall.comparison && overall.comparison.length) {
+      lines.push('    <test-predictors>')
+      overall.comparison.forEach(function (c) {
+        if (c.score) {
+          var label = c.label && c.label !== 'Level Not Provided' ? c.label : undefined
+          lines.push('      ' + tag('test', { name: c.name, score: c.score, max: c.max, label: label }))
         }
-      }
-      if (d.subSkills && d.subSkills.length) {
-        lines.push('')
-        lines.push('  **Sub-skills**')
-        d.subSkills.forEach(function (s) {
-          lines.push('  - ' + s.name + (s.level ? ' — ' + s.level : ''))
-        })
-      }
-      if (d.topErrors && d.topErrors.length) {
-        lines.push('')
-        lines.push('  **Top Errors**')
-        d.topErrors.forEach(function (e) {
-          lines.push('  - ' + e.sound + (e.mistakes ? ': ' + e.mistakes : ''))
-        })
-      }
-      if (d.tutorials && d.tutorials.length) {
-        lines.push('')
-        lines.push('  **Tutorials**')
-        d.tutorials.forEach(function (t) {
-          if (t.url) {
-            lines.push('  - [' + t.title + '](' + t.url + ')')
-          } else {
-            lines.push('  - ' + t.title)
-          }
-        })
-      }
-      if (d.fluencySubScores && d.fluencySubScores.length) {
-        lines.push('')
-        lines.push('  **Fluency Breakdown**')
-        d.fluencySubScores.forEach(function (s) {
-          lines.push('  - ' + s.name + ': ' + s.value + ' (' + s.label + ')')
-        })
-      }
-      if (d.gauge && d.gauge.value) {
-        if (!d.fluencySubScores || !d.fluencySubScores.length) lines.push('')
-        lines.push('  - **Current**: ' + d.gauge.value + (d.gauge.label ? ' (' + d.gauge.label + ')' : ''))
-      }
-      lines.push('')
-    })
+      })
+      lines.push('    </test-predictors>')
+    }
+
+    var skillDetails = results.slice(1).filter(function (r) { return r && r.skill })
+    if (skillDetails.length) {
+      lines.push('    <skill-details>')
+      skillDetails.forEach(function (d) {
+        if (d.noResult) {
+          lines.push('      <skill name="' + esc(d.skill) + '" no-result="' + esc(d.noResult) + '" />')
+          return
+        }
+
+        lines.push('      <skill' + attrs(d) + '>')
+
+        if (d.description) {
+          lines.push('        <description>' + esc(d.description) + '</description>')
+        }
+
+        if (d.pitchOverview && d.pitchOverview.description) {
+          lines.push('        <pitch-variation>' + esc(d.pitchOverview.description) + '</pitch-variation>')
+        }
+
+        if (d.subSkills && d.subSkills.length) {
+          lines.push('        <sub-skills>')
+          d.subSkills.forEach(function (s) {
+            lines.push('          ' + tag('item', { name: s.name, level: s.level }))
+          })
+          lines.push('        </sub-skills>')
+        }
+
+        if (d.topErrors && d.topErrors.length) {
+          lines.push('        <top-errors>')
+          d.topErrors.forEach(function (e) {
+            lines.push('          ' + tag('error', { sound: e.sound, mistakes: e.mistakes || undefined }))
+          })
+          lines.push('        </top-errors>')
+        }
+
+        if (d.tutorials && d.tutorials.length) {
+          lines.push('        <tutorials>')
+          d.tutorials.forEach(function (t) {
+            lines.push('          ' + tag('tutorial', { title: t.title, url: t.url || undefined }))
+          })
+          lines.push('        </tutorials>')
+        }
+
+        if (d.fluencySubScores && d.fluencySubScores.length) {
+          lines.push('        <fluency-breakdown>')
+          d.fluencySubScores.forEach(function (s) {
+            lines.push('          ' + tag('metric', { name: s.name, value: s.value, label: s.label }))
+          })
+          lines.push('        </fluency-breakdown>')
+        }
+
+        if (d.gauge && d.gauge.value) {
+          lines.push('        ' + tag('gauge', { value: d.gauge.value, label: d.gauge.label || undefined }))
+        }
+
+        lines.push('      </skill>')
+      })
+      lines.push('    </skill-details>')
+    }
+
+    if (overall.transcript) {
+      lines.push('    <transcript>')
+      lines.push('      <![CDATA[')
+      lines.push(overall.transcript)
+      lines.push('      ]]>')
+      lines.push('    </transcript>')
+    }
+
+    lines.push('  </recording>')
   }
 
-  function formatSkillLabel(skill) {
-    var parts = skill.split('/')
-    var last = parts[parts.length - 1]
-    return last.charAt(0).toUpperCase() + last.slice(1)
-  }
-
-  if (overall && overall.transcript) {
-    lines.push('## Transcript')
-    lines.push('')
-    lines.push(overall.transcript)
-    lines.push('')
-  }
-
+  lines.push('</fluency-coach-report>')
   return lines.join('\n')
+
+  function attrs(d) {
+    var a = ' name="' + esc(d.skill) + '"'
+    if (d.overall) {
+      if (d.overall.score) a += ' score="' + esc(d.overall.score) + '"'
+      if (d.overall.level) a += ' level="' + esc(d.overall.level) + '"'
+    }
+    return a
+  }
 }
 
 function handleCopy() {
@@ -286,7 +322,7 @@ function handleCopy() {
 function restoreLastReport() {
   chrome.storage.local.get('lastReport', function (items) {
     if (!items.lastReport) return
-    if (items.lastReport.indexOf('- Score:') === -1) return
+    if (items.lastReport.indexOf('<fluency-coach-report>') === -1) return
     document.getElementById('output').textContent = items.lastReport
     document.getElementById('output').style.display = 'block'
     document.getElementById('outputActions').classList.remove('hidden')
