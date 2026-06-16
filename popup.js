@@ -144,7 +144,6 @@ function extractSkillDetails(skills, tab, results) {
       return
     }
     var skill = skills[i++]
-    var isFluency = skill.indexOf('fluency/') === 0
 
     chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_SKILL', skill: skill }, function (response) {
       if (chrome.runtime.lastError || !response || !response.ok) {
@@ -156,22 +155,30 @@ function extractSkillDetails(skills, tab, results) {
       chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT', options: {} }, function (extractResponse) {
         var data = extractResponse && extractResponse.ok ? extractResponse.data : null
         results.push(data || { skill: skill, error: 'extract failed' })
-
-        function back() {
-          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
-            next()
-          })
-        }
-
-        if (isFluency) {
-          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
-            back()
-          })
-        } else {
-          back()
-        }
+        goBack()
       })
     })
+
+    function goBack() {
+      var isFluency = skill.indexOf('fluency/') === 0
+      var nextSkill = i < skills.length ? skills[i] : null
+      var nextIsFluency = nextSkill && nextSkill.indexOf('fluency/') === 0
+
+      if (isFluency && nextIsFluency) {
+        next()
+        return
+      }
+
+      function done() { next() }
+
+      if (isFluency) {
+        chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
+          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, done)
+        })
+      } else {
+        chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, done)
+      }
+    }
   }
 
   next()
