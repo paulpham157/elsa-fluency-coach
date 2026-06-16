@@ -11,6 +11,8 @@ Chrome extension trích xuất dữ liệu phân tích giọng nói từ [ELSA S
 
 Không cần build — đây là extension Manifest V3 thuần, không bundler, không package.json.
 
+> ⚠️ **Quan trọng:** Sau khi cài, **không được xoá thư mục extension**. Nếu xoá, extension sẽ bị vô hiệu hoá. Giải nén ra thư mục cố định, không giải nén tạm rồi xoá.
+
 ## Cách dùng
 
 1. Truy cập [ELSA Speech Analyzer](https://speechanalyzer.elsaspeak.com) và mở một recording bất kỳ
@@ -21,8 +23,8 @@ Không cần build — đây là extension Manifest V3 thuần, không bundler, 
    - Điều hướng qua từng skill detail page (Pronunciation, Intonation, Fluency, Grammar, Vocabulary)
    - Fluency được phân tích chi tiết theo 3 sub-page: Pace, Pausing, Hesitations
    - Gom tất cả vào báo cáo XML
-5. Click **Copy to Clipboard** để copy báo cáo
-6. Dán vào Claude AI kèm yêu cầu phân tích
+5. Click **Copy to Clipboard** — prompt phân tích và cải thiện đã được đính kèm sẵn trong báo cáo
+6. Dán vào AI bất kỳ (Claude, ChatGPT, Gemini...)
 
 ### Ghi chú
 
