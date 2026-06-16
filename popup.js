@@ -1,64 +1,17 @@
 var state = {
   tabId: null,
   url: '',
-  settings: {
-    includeTranscript: true,
-    includeComparison: true,
-    includeSkillDetails: true,
-    skillDetailTabs: ['pronunciation', 'intonation', 'fluency/pace', 'fluency/pausing', 'fluency/hesitations', 'grammar', 'vocabulary'],
-  },
 }
 
+var SKILL_TABS = ['pronunciation', 'intonation', 'fluency/pace', 'fluency/pausing', 'fluency/hesitations', 'grammar', 'vocabulary']
+
 document.addEventListener('DOMContentLoaded', function () {
-  loadSettings()
   setupEventListeners()
   checkCurrentTab()
   restoreLastReport()
 })
 
-function loadSettings() {
-  chrome.storage.local.get(
-    { includeTranscript: true, includeComparison: true, includeSkillDetails: true, skillDetailTabs: ['pronunciation', 'intonation', 'fluency/pace', 'fluency/pausing', 'fluency/hesitations', 'grammar', 'vocabulary'] },
-    function (items) {
-      state.settings = items
-      document.getElementById('includeTranscript').checked = items.includeTranscript
-      document.getElementById('includeComparison').checked = items.includeComparison
-      document.getElementById('includeSkillDetails').checked = items.includeSkillDetails
-      toggleSkillOptions(items.includeSkillDetails)
-    }
-  )
-}
-
-function saveSettings() {
-  var settings = {
-    includeTranscript: document.getElementById('includeTranscript').checked,
-    includeComparison: document.getElementById('includeComparison').checked,
-    includeSkillDetails: document.getElementById('includeSkillDetails').checked,
-    skillDetailTabs: getCheckedSkills(),
-  }
-  chrome.storage.local.set(settings)
-  state.settings = settings
-}
-
-function getCheckedSkills() {
-  var checks = document.querySelectorAll('#skillDetailOptions input[type="checkbox"]:checked')
-  return Array.from(checks).map(function (c) { return c.value })
-}
-
-function toggleSkillOptions(show) {
-  document.getElementById('skillDetailOptions').classList.toggle('hidden', !show)
-}
-
 function setupEventListeners() {
-  document.getElementById('includeTranscript').addEventListener('change', saveSettings)
-  document.getElementById('includeComparison').addEventListener('change', saveSettings)
-  document.getElementById('includeSkillDetails').addEventListener('change', function () {
-    toggleSkillOptions(this.checked)
-    saveSettings()
-  })
-  document.querySelectorAll('#skillDetailOptions input').forEach(function (cb) {
-    cb.addEventListener('change', saveSettings)
-  })
   document.getElementById('extractBtn').addEventListener('click', handleExtract)
   document.getElementById('copyBtn').addEventListener('click', handleCopy)
 }
@@ -83,7 +36,6 @@ function hideStatus() {
 }
 
 function handleExtract() {
-  saveSettings()
   hideStatus()
   chrome.storage.local.remove('lastReport')
   document.getElementById('output').style.display = 'none'
@@ -105,8 +57,8 @@ function handleExtract() {
 
 function askOverall(tab) {
   var options = {
-    includeTranscript: state.settings.includeTranscript,
-    includeComparison: state.settings.includeComparison,
+    includeTranscript: true,
+    includeComparison: true,
   }
 
   chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT', options: options }, function (response) {
@@ -125,13 +77,7 @@ function askOverall(tab) {
     }
 
     var allResults = [response.data]
-
-    var skillTabs = state.settings.skillDetailTabs
-    if (state.settings.includeSkillDetails && skillTabs.length > 0) {
-      extractSkillDetails(skillTabs, tab, allResults)
-    } else {
-      finishExtract(allResults, tab)
-    }
+    extractSkillDetails(SKILL_TABS, tab, allResults)
   })
 }
 
@@ -145,18 +91,14 @@ function extractSkillDetails(skills, tab, results) {
     }
     var skill = skills[i++]
 
-    console.log('[FC] send NAVIGATE_SKILL:', skill)
     chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_SKILL', skill: skill }, function (response) {
-      console.log('[FC] NAVIGATE_SKILL done:', skill, response ? 'ok' : 'fail')
       if (chrome.runtime.lastError || !response || !response.ok) {
         results.push({ skill: skill, error: response ? response.error : 'nav failed' })
         next()
         return
       }
 
-      console.log('[FC] send EXTRACT:', skill)
       chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT', options: {} }, function (extractResponse) {
-        console.log('[FC] EXTRACT done:', skill, extractResponse ? 'ok' : 'fail')
         var data = extractResponse && extractResponse.ok ? extractResponse.data : null
         results.push(data || { skill: skill, error: 'extract failed' })
         goBack()
@@ -169,24 +111,17 @@ function extractSkillDetails(skills, tab, results) {
       var nextIsFluency = nextSkill && nextSkill.indexOf('fluency/') === 0
 
       if (isFluency && nextIsFluency) {
-        console.log('[FC] skip back, next fluency:', nextSkill)
         next()
         return
       }
 
-      function done() { console.log('[FC] back done'); next() }
+      function done() { next() }
 
       if (isFluency) {
-        console.log('[FC] double back start')
         chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
-          console.log('[FC] double back 1 done')
-          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
-            console.log('[FC] double back 2 done')
-            done()
-          })
+          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, done)
         })
       } else {
-        console.log('[FC] single back start')
         chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, done)
       }
     }
