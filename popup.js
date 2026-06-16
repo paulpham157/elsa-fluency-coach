@@ -145,14 +145,18 @@ function extractSkillDetails(skills, tab, results) {
     }
     var skill = skills[i++]
 
+    console.log('[FC] send NAVIGATE_SKILL:', skill)
     chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_SKILL', skill: skill }, function (response) {
+      console.log('[FC] NAVIGATE_SKILL done:', skill, response ? 'ok' : 'fail')
       if (chrome.runtime.lastError || !response || !response.ok) {
         results.push({ skill: skill, error: response ? response.error : 'nav failed' })
         next()
         return
       }
 
+      console.log('[FC] send EXTRACT:', skill)
       chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT', options: {} }, function (extractResponse) {
+        console.log('[FC] EXTRACT done:', skill, extractResponse ? 'ok' : 'fail')
         var data = extractResponse && extractResponse.ok ? extractResponse.data : null
         results.push(data || { skill: skill, error: 'extract failed' })
         goBack()
@@ -165,17 +169,24 @@ function extractSkillDetails(skills, tab, results) {
       var nextIsFluency = nextSkill && nextSkill.indexOf('fluency/') === 0
 
       if (isFluency && nextIsFluency) {
+        console.log('[FC] skip back, next fluency:', nextSkill)
         next()
         return
       }
 
-      function done() { next() }
+      function done() { console.log('[FC] back done'); next() }
 
       if (isFluency) {
+        console.log('[FC] double back start')
         chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
-          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, done)
+          console.log('[FC] double back 1 done')
+          chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, function () {
+            console.log('[FC] double back 2 done')
+            done()
+          })
         })
       } else {
+        console.log('[FC] single back start')
         chrome.tabs.sendMessage(tab.id, { type: 'NAVIGATE_BACK' }, done)
       }
     }

@@ -1,4 +1,5 @@
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+  console.log('[FC] msg:', message.type, message.skill || '', 'path:', window.location.pathname)
   if (message.type === 'EXTRACT') {
     const url = window.location.pathname.replace(/\/+$/, '')
     const options = message.options || {}
@@ -99,6 +100,7 @@ function clickFluencySubSkill(skill, sendResponse) {
 }
 
 function navigateToSkill(skill, sendResponse) {
+  console.log('[FC] navigateToSkill:', skill, 'path:', window.location.pathname)
   var tabName = getSkillTabName(skill)
   var skillBase = skill.split('/')[0]
   var isFluency = skill.indexOf('fluency/') === 0
@@ -124,6 +126,7 @@ function navigateToSkill(skill, sendResponse) {
 }
 
 function navigateBack(sendResponse) {
+  console.log('[FC] navigateBack path:', window.location.pathname)
   var url = window.location.pathname.replace(/\/+$/, '')
   var backBtn = document.querySelector('.recording-overall__back')
   if (!backBtn) {
