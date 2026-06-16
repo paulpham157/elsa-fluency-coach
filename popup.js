@@ -141,6 +141,25 @@ function finishExtract(results, tab) {
   chrome.storage.local.set({ lastReport: report })
 }
 
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function tag(name, attrs, content) {
+  var a = ''
+  if (attrs) {
+    for (var k in attrs) {
+      if (attrs[k] !== undefined && attrs[k] !== null && attrs[k] !== '') {
+        a += ' ' + k + '="' + esc(String(attrs[k])) + '"'
+      }
+    }
+  }
+  if (content === undefined || content === null || content === '') {
+    return '<' + name + a + ' />'
+  }
+  return '<' + name + a + '>' + content + '</' + name + '>'
+}
+
 function renderReport(results) {
   var lines = []
   lines.push('# Fluency Coach Report')
