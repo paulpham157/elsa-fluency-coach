@@ -40,6 +40,19 @@ function waitForEl(selector, callback, timeout) {
   }
 }
 
+function waitForUrl(urlPattern, callback, timeout) {
+  var timer = timeout ? setTimeout(function () { callback(false) }, timeout) : null
+  function poll() {
+    if (window.location.pathname.match(urlPattern)) {
+      if (timer) clearTimeout(timer)
+      callback(true)
+    } else {
+      setTimeout(poll, 100)
+    }
+  }
+  poll()
+}
+
 function getSkillTabName(skill) {
   var map = {
     pronunciation: 'Pronunciation',
@@ -65,45 +78,63 @@ function clickTab(tabName) {
   return found
 }
 
+function clickFluencySubSkill(skill, sendResponse) {
+  var subSkill = skill.split('/')[1]
+  waitForEl('.accordion-sub-item__title-large', function (el) {
+    if (!el) { sendResponse({ ok: false, error: 'Sub-skill list not found' }); return }
+    var items = document.querySelectorAll('.accordion-sub-item')
+    var clicked = false
+    items.forEach(function (item) {
+      var nameEl = item.querySelector('.accordion-sub-item__title-large')
+      if (nameEl && nameEl.textContent.trim().toLowerCase() === subSkill) {
+        item.click()
+        clicked = true
+      }
+    })
+    if (!clicked) { sendResponse({ ok: false, error: 'Sub-skill not found: ' + subSkill }); return }
+    waitForUrl('/' + subSkill + '$', function (matched) {
+      sendResponse({ ok: matched })
+    }, 15000)
+  }, 10000)
+}
+
 function navigateToSkill(skill, sendResponse) {
   var tabName = getSkillTabName(skill)
+  var skillBase = skill.split('/')[0]
+  var isFluency = skill.indexOf('fluency/') === 0
+  var onFluencySubPage = !!window.location.pathname.match(/\/fluency\/(pace|pausing|hesitations)$/)
+
+  if (onFluencySubPage && isFluency) {
+    clickFluencySubSkill(skill, sendResponse)
+    return
+  }
+
   clickTab(tabName)
-
-  waitForEl('.link-to-text', function (link) {
+  waitForEl('.' + skillBase + '-tab .link-to-text', function (link) {
     if (!link) { sendResponse({ ok: false, error: 'No link found' }); return }
-
-    var isFluency = skill.indexOf('fluency/') === 0
+    link.click()
     if (isFluency) {
-      link.click()
-      var subSkill = skill.split('/')[1]
-      waitForEl('.accordion-sub-item', function () {
-        var links = document.querySelectorAll('.accordion-sub-item a, .accordion-sub-item')
-        var clicked = false
-        links.forEach(function (item) {
-          var nameEl = item.querySelector('.accordion-sub-item__title-large')
-          if (nameEl && nameEl.textContent.trim().toLowerCase() === subSkill) {
-            if (item.tagName === 'A') item.click()
-            else { var a = item.closest('a'); if (a) a.click() }
-            clicked = true
-          }
-        })
-        if (!clicked) { sendResponse({ ok: false, error: 'Sub-skill not found: ' + subSkill }); return }
-        waitForEl('.gauge-chart__text-wrapper, .recording-detail-score', function () {
-          sendResponse({ ok: true })
-        }, 15000)
-      }, 10000)
+      clickFluencySubSkill(skill, sendResponse)
     } else {
-      link.click()
-      waitForEl('.recording-detail-score', function () {
-        sendResponse({ ok: true })
+      waitForUrl('/' + skillBase + '$', function (matched) {
+        sendResponse({ ok: matched })
       }, 15000)
     }
-  }, 5000)
+  }, 10000)
 }
 
 function navigateBack(sendResponse) {
-  history.back()
-  waitForEl('.wrapper-tabs', function (el) {
-    sendResponse({ ok: true })
+  var url = window.location.pathname.replace(/\/+$/, '')
+  var backBtn = document.querySelector('.recording-overall__back')
+  if (!backBtn) {
+    sendResponse({ ok: false, error: 'No back button found' })
+    return
+  }
+  backBtn.click()
+  var target = url.match(/\/fluency\/(pace|pausing|hesitations)$/)
+    ? '.recording-detail-score'
+    : '.wrapper-tabs'
+  waitForEl(target, function (el) {
+    sendResponse({ ok: !!el })
   }, 15000)
 }
