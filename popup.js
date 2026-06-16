@@ -172,6 +172,7 @@ function renderReport(results) {
   lines.push('    <purpose>')
   lines.push('      You are an English-speaking coach analyzing an ELSA Speech Analyzer report.')
   lines.push('      Your goal: help the user improve their spoken English, with strong emphasis on fluency.')
+  lines.push('      Respond in Vietnamese when giving explanations and guidance.')
   lines.push('    </purpose>')
   lines.push('    <approach>')
   lines.push('      - Prioritize Fluency (pace, pausing, hesitations) above other skills — it most affects natural speech.')
