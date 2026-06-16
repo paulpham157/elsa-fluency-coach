@@ -127,17 +127,13 @@ function navigateToSkill(skill, sendResponse) {
 
 function navigateBack(sendResponse) {
   console.log('[FC] navigateBack path:', window.location.pathname)
-  var url = window.location.pathname.replace(/\/+$/, '')
   var backBtn = document.querySelector('.recording-overall__back')
   if (!backBtn) {
     sendResponse({ ok: false, error: 'No back button found' })
     return
   }
   backBtn.click()
-  var target = url.match(/\/fluency\/(pace|pausing|hesitations)$/)
-    ? '.recording-detail-score'
-    : '.wrapper-tabs'
-  waitForEl(target, function (el) {
+  waitForEl('.wrapper-tabs', function (el) {
     sendResponse({ ok: !!el })
   }, 15000)
 }
