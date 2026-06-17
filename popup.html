@@ -21,6 +21,10 @@
     .status { font-size: 12px; color: #64748b; margin-top: 8px; text-align: center; }
     .status.error { color: #dc2626; }
     .report { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; display: none; }
+    .instructions-section { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 12px; }
+    .instructions-section label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
+    .instructions-section .hint { font-size: 11px; color: #94a3b8; margin-bottom: 6px; }
+    .instructions-section textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12px; line-height: 1.5; resize: vertical; min-height: 100px; }
     .hidden { display: none; }
     .mt-8 { margin-top: 8px; }
   </style>
@@ -37,6 +41,12 @@
     <div id="status" class="status hidden"></div>
 
     <div id="output" class="report mt-8"></div>
+
+    <div id="instructionsSection" class="instructions-section hidden">
+      <label for="instructionsTextarea">Instructions for AI</label>
+      <div class="hint">You can edit these instructions before copying</div>
+      <textarea id="instructionsTextarea" rows="10"></textarea>
+    </div>
 
     <div class="btn-group hidden" id="outputActions">
       <button id="copyBtn" class="btn btn-secondary">Copy to Clipboard</button>
