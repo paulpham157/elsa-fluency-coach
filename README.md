@@ -63,9 +63,6 @@ Báo cáo xuất ra định dạng XML với cấu trúc:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <fluency-coach-report>
-  <agent-instructions>
-    <!-- Hướng dẫn AI phân tích báo cáo -->
-  </agent-instructions>
   <recording title="..." date="..." duration="..." speaking-time="...">
     <skill-scores>
       <skill name="Pronunciation" score="34%" />
@@ -88,6 +85,9 @@ Báo cáo xuất ra định dạng XML với cấu trúc:
       <![CDATA[...]]>
     </transcript>
   </recording>
+  <agent-instructions>
+    <!-- (đã chuyển xuống cuối, sau recording) -->
+  </agent-instructions>
 </fluency-coach-report>
 ```
 
