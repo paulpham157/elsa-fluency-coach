@@ -6,10 +6,22 @@ var state = {
 var SKILL_TABS = ['pronunciation', 'intonation', 'fluency/pace', 'fluency/pausing', 'fluency/hesitations', 'grammar', 'vocabulary']
 
 document.addEventListener('DOMContentLoaded', function () {
+  setupTabs()
   setupEventListeners()
   checkCurrentTab()
   restoreLastReport()
 })
+
+function setupTabs() {
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active') })
+      document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active') })
+      btn.classList.add('active')
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active')
+    })
+  })
+}
 
 function setupEventListeners() {
   document.getElementById('extractBtn').addEventListener('click', handleExtract)
@@ -24,10 +36,17 @@ function checkCurrentTab() {
   })
 }
 
-function showStatus(msg, isError) {
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active') })
+  document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active') })
+  document.querySelector('.tab-btn[data-tab="' + name + '"]').classList.add('active')
+  document.getElementById('tab-' + name).classList.add('active')
+}
+
+function showStatus(msg, type) {
   var el = document.getElementById('status')
   el.textContent = msg
-  el.className = 'status' + (isError ? ' error' : '')
+  el.className = 'status' + (type ? ' ' + type : '')
   el.classList.remove('hidden')
 }
 
@@ -35,18 +54,21 @@ function hideStatus() {
   document.getElementById('status').classList.add('hidden')
 }
 
+function now() {
+  var d = new Date()
+  return d.toLocaleTimeString() + ' - ' + d.toLocaleDateString()
+}
+
 function handleExtract() {
   hideStatus()
-  chrome.storage.local.remove(['lastReportBody', 'lastReportInstructions'])
-  document.getElementById('output').style.display = 'none'
-  document.getElementById('instructionsSection').classList.add('hidden')
-  document.getElementById('outputActions').classList.add('hidden')
+  document.getElementById('extractInfo').classList.add('hidden')
+  document.getElementById('copySection').classList.add('hidden')
   document.getElementById('extractBtn').disabled = true
   document.getElementById('extractBtn').textContent = 'Extracting...'
 
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (!tabs.length || !tabs[0].url || !tabs[0].url.includes('speechanalyzer.elsaspeak.com')) {
-      showStatus('Open a recording page on ELSA Speech Analyzer first.', true)
+      showStatus('Open a recording page on ELSA Speech Analyzer first.', 'error')
       document.getElementById('extractBtn').disabled = false
       document.getElementById('extractBtn').textContent = 'Extract Data'
       return
@@ -57,21 +79,18 @@ function handleExtract() {
 }
 
 function askOverall(tab) {
-  var options = {
-    includeTranscript: true,
-    includeComparison: true,
-  }
+  var options = { includeTranscript: true, includeComparison: true }
 
   chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT', options: options }, function (response) {
     if (chrome.runtime.lastError) {
-      showStatus('Cannot reach the page. Try reloading it.', true)
+      showStatus('Cannot reach the page. Try reloading it.', 'error')
       document.getElementById('extractBtn').disabled = false
       document.getElementById('extractBtn').textContent = 'Extract Data'
       return
     }
 
     if (!response || !response.ok) {
-      showStatus('Failed to extract data: ' + (response ? response.error : 'unknown'), true)
+      showStatus('Failed to extract data: ' + (response ? response.error : 'unknown'), 'error')
       document.getElementById('extractBtn').disabled = false
       document.getElementById('extractBtn').textContent = 'Extract Data'
       return
@@ -87,7 +106,7 @@ function extractSkillDetails(skills, tab, results) {
 
   function next() {
     if (i >= skills.length) {
-      finishExtract(results, tab)
+      finishExtract(results)
       return
     }
     var skill = skills[i++]
@@ -131,17 +150,33 @@ function extractSkillDetails(skills, tab, results) {
   next()
 }
 
-function finishExtract(results, tab) {
+function finishExtract(results) {
   var report = renderReport(results)
-  document.getElementById('output').textContent = report.body
-  document.getElementById('output').style.display = 'block'
+  var timestamp = now()
+
+  document.getElementById('output').textContent = report.full
+  document.getElementById('output').dataset.body = report.body
   document.getElementById('instructionsTextarea').value = report.instructions
-  document.getElementById('instructionsSection').classList.remove('hidden')
-  document.getElementById('outputActions').classList.remove('hidden')
+
   document.getElementById('extractBtn').disabled = false
   document.getElementById('extractBtn').textContent = 'Extract Data'
+
+  document.getElementById('extractInfo').textContent = 'Extracted at ' + timestamp
+  document.getElementById('extractInfo').classList.remove('hidden')
+  document.getElementById('copySection').classList.remove('hidden')
+
+  document.getElementById('promptTimestamp').textContent = 'Last extract: ' + timestamp
+  document.getElementById('promptTimestamp').classList.remove('hidden')
+
   hideStatus()
-  chrome.storage.local.set({ lastReportBody: report.body, lastReportInstructions: report.instructions })
+  switchTab('extract')
+
+  chrome.storage.local.set({
+    lastReportBody: report.body,
+    lastReportInstructions: report.instructions,
+    lastReportFull: report.full,
+    lastExtractTimestamp: timestamp,
+  })
 }
 
 function esc(s) {
@@ -167,7 +202,11 @@ function renderReport(results) {
   var overall = results[0]
   var body = buildReportBody(overall, results)
   var instructions = buildInstructions()
-  return { body: body, instructions: instructions, full: body + '\n' + instructions + '\n</fluency-coach-report>' }
+  return {
+    body: body,
+    instructions: instructions,
+    full: body + '\n' + instructions + '\n</fluency-coach-report>',
+  }
 
   function buildReportBody(overall, results) {
     var lines = []
@@ -297,24 +336,34 @@ function renderReport(results) {
 }
 
 function handleCopy() {
-  var body = document.getElementById('output').textContent
+  var outputEl = document.getElementById('output')
+  var body = outputEl.dataset.body || outputEl.textContent
   var instructions = document.getElementById('instructionsTextarea').value
   var full = body + '\n' + instructions + '\n</fluency-coach-report>'
   navigator.clipboard.writeText(full).then(function () {
-    showStatus('Copied to clipboard!')
+    showStatus('Copied to clipboard!', 'success')
     setTimeout(hideStatus, 2000)
   })
 }
 
 function restoreLastReport() {
-  chrome.storage.local.get(['lastReportBody', 'lastReportInstructions'], function (items) {
+  chrome.storage.local.get(['lastReportBody', 'lastReportInstructions', 'lastReportFull', 'lastExtractTimestamp'], function (items) {
     if (!items.lastReportBody) return
     if (items.lastReportBody.indexOf('<fluency-coach-report>') === -1) return
-    document.getElementById('output').textContent = items.lastReportBody
-    document.getElementById('output').style.display = 'block'
+
+    var outputEl = document.getElementById('output')
+    outputEl.textContent = items.lastReportFull || items.lastReportBody
+    outputEl.dataset.body = items.lastReportBody
     document.getElementById('instructionsTextarea').value = items.lastReportInstructions || ''
-    document.getElementById('instructionsSection').classList.remove('hidden')
-    document.getElementById('outputActions').classList.remove('hidden')
-    showStatus('Previous report restored. Click Extract to generate a new one.')
+
+    if (items.lastExtractTimestamp) {
+      document.getElementById('extractInfo').textContent = 'Extracted at ' + items.lastExtractTimestamp
+      document.getElementById('extractInfo').classList.remove('hidden')
+      document.getElementById('promptTimestamp').textContent = 'Last extract: ' + items.lastExtractTimestamp
+      document.getElementById('promptTimestamp').classList.remove('hidden')
+    }
+
+    document.getElementById('copySection').classList.remove('hidden')
+    showStatus('Previous report restored.')
   })
 }
